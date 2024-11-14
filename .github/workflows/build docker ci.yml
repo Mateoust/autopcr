@@ -16,16 +16,18 @@ jobs:
 
       - name: Get current date
         id: current_date
-        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV # 获取当前日期并存储在环境变量中
+        run: |
+          export TZ=Asia/Shanghai # 设置时区为中国标准时间（UTC+8）
+          echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV # 获取当前日期并存储在环境变量中
 
       - name: Build the Docker image
         run: docker build -t mateoust/autopcr:${{ env.CURRENT_DATE }} .
 
       - name: Push the Docker image to Docker Hub
-        run: docker push mateoust/autopcr:${{ env.CURRENT_DATE }} .
+        run: docker push mateoust/autopcr:${{ env.CURRENT_DATE }}
 
       - name: Save Docker image as a tar file
-        run: docker save -o ${GITHUB_WORKSPACE}/docker-image.tar mateoust/${{ env.CURRENT_DATE }} .
+        run: docker save -o ${GITHUB_WORKSPACE}/docker-image.tar mateoust/${{ env.CURRENT_DATE }}
         
       - name: Upload Docker image as artifact
         uses: actions/upload-artifact@v4
