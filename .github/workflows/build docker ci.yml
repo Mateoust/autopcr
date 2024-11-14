@@ -15,13 +15,13 @@ jobs:
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
       - name: Build the Docker image
-        run: docker build -t mateoust/${{ github.repository }}:latest .
+        run: docker build -t mateoust/autopcr:latest .
 
       - name: Push the Docker image to Docker Hub
-        run: docker push mateoust/${{ github.repository }}:latest
+        run: docker push mateoust/autopcr:latest
 
       - name: Save Docker image as a tar file
-        run: docker save -o ${GITHUB_WORKSPACE}/docker-image.tar mateoust/${{ github.repository }}:latest
+        run: docker save -o ${GITHUB_WORKSPACE}/docker-image.tar mateoust/autopcr:latest
         
       - name: Upload Docker image as artifact
         uses: actions/upload-artifact@v4
