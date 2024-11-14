@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
@@ -20,8 +20,11 @@ jobs:
       - name: Push the Docker image to Docker Hub
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:latest
 
+      - name: Save Docker image as a tar file
+        run: docker save -o ${GITHUB_WORKSPACE}/docker-image.tar ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:latest
+        
       - name: Upload Docker image as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: docker-image
-          path: /
+          path: docker-image.tar
