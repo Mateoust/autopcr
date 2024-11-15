@@ -30,10 +30,10 @@ jobs:
         run: docker logout
 
       - name: Save Docker image as a tar file
-        run: docker save -o ${GITHUB_WORKSPACE}/docker-image.tar mateoust/${{ env.CURRENT_DATE }}
+        run: docker save -o ${GITHUB_WORKSPACE}/docker-image-${{ env.CURRENT_DATE }}.tar mateoust/autopcr:${{ env.CURRENT_DATE }}
         
       - name: Upload Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docker-image
-          path: docker-image.tar
+          name: docker-image-${{ env.CURRENT_DATE }}.tar
+          path: docker-image-${{ env.CURRENT_DATE }}.tar
