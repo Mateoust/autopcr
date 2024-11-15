@@ -23,9 +23,14 @@ jobs:
       - name: Build the Docker image
         run: docker build -t mateoust/autopcr:${{ env.CURRENT_DATE }} .
 
+      - name: Tag the Docker image
+        run: docker tag mateoust/autopcr:${{ env.CURRENT_DATE }} mateoust/autopcr:latest
+
       - name: Push the Docker image to Docker Hub
-        run: docker push mateoust/autopcr:${{ env.CURRENT_DATE }}
-      
+        run: |
+          docker push mateoust/autopcr:${{ env.CURRENT_DATE }}
+          docker push mateoust/autopcr:latest
+          
       - name: Logout from Docker Hub
         run: docker logout
 
