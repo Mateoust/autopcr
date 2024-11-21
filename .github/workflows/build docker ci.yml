@@ -1,0 +1,44 @@
+name: Build and Push Docker Image
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - name: Get current date
+        id: current_date
+        run: |
+          export TZ=Asia/Shanghai # 设置时区为中国标准时间（UTC+8）
+          echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV # 获取当前日期并存储在环境变量中
+
+      - name: Build the Docker image
+        run: docker build -t mateoust/autopcr:${{ env.CURRENT_DATE }} .
+
+      - name: Tag the Docker image
+        run: docker tag mateoust/autopcr:${{ env.CURRENT_DATE }} mateoust/autopcr:latest
+
+      - name: Push the Docker image to Docker Hub
+        run: |
+          docker push mateoust/autopcr:${{ env.CURRENT_DATE }}
+          docker push mateoust/autopcr:latest
+          
+      - name: Logout from Docker Hub
+        run: docker logout
+
+      - name: Save Docker image as a tar file
+        run: docker save -o ${GITHUB_WORKSPACE}/docker-image-${{ env.CURRENT_DATE }}.tar mateoust/autopcr:${{ env.CURRENT_DATE }}
+        
+      - name: Upload Docker image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-${{ env.CURRENT_DATE }}.tar
+          path: docker-image-${{ env.CURRENT_DATE }}.tar
