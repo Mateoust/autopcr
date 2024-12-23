@@ -38,6 +38,23 @@ class pcrclient(apiclient):
     async def logout(self):
         await self.session.clear_session()
 
+    async def support_unit_get_setting(self):
+        req = SupportUnitGetSettingRequest()
+        return await self.request(req)
+
+    async def support_unit_change_setting(self, support_type: int, position: int, action: int, unit_id: int):
+        req = SupportUnitChangeSettingRequest()
+        req.support_type = support_type
+        req.position = position
+        req.action = action
+        req.unit_id = unit_id
+        return await self.request(req)
+
+    async def item_recycle_ex(self, consume_ex_serial_id_list: List[int]):
+        req = ItemRecycleExtraEquipRequest()
+        req.consume_ex_serial_id_list = consume_ex_serial_id_list
+        return await self.request(req)
+
     async def season_ticket_new_index(self, season_id: int):
         req = SeasonPassIndexRequest()
         req.season_id = season_id
@@ -925,6 +942,7 @@ class pcrclient(apiclient):
 
     async def unlock_quest_id(self, quest: int):
         return (
+            (quest == 0) or
             (quest in self.data.quest_dict and self.data.quest_dict[quest].clear_flg > 0) or 
             (quest in db.tower_quest and self.data.tower_status.cleared_floor_num >= db.tower_quest[quest].floor_num)
         )
