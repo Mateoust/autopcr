@@ -493,6 +493,16 @@ class pcrclient(apiclient):
         await self.story_check(story_id)
         return await self.story_view(story_id)
 
+    async def put_mme_piece(self, sub_story_id: int):
+        req = SubStoryMmePutPieceRequest()
+        req.sub_story_id = sub_story_id
+        return await self.request(req)
+
+    async def read_mme_story(self, sub_story_id: int):
+        req = SubStoryMmeReadStoryRequest()
+        req.sub_story_id = sub_story_id
+        return await self.request(req)
+
     async def read_xeh_story(self, sub_story_id: int):
         req = SubStoryXehReadStoryRequest()
         req.sub_story_id = sub_story_id
@@ -648,7 +658,17 @@ class pcrclient(apiclient):
         req.target_viewer_id = user
         return await self.request(req)
 
+    async def shiori_mission_receive(self, event_id: int, type: int):
+        req = ShioriMissionAcceptRequest()
+        req.event_id = event_id
+        req.type = type
+        req.id = 0
+        req.buy_id = 0
+        return await self.request(req)
+
     async def get_shiori_top(self):
+        if not self.data.is_quest_cleared(11003002):
+            raise SkipError("未解锁外传")
         req = ShioriTopRequest()
         return await self.request(req)
 
