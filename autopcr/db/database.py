@@ -441,6 +441,11 @@ class database():
                 .to_dict(lambda x: x.tower_quest_id, lambda x: x)
             )
 
+            self.tdf_schedule: Dict[int, TdfSchedule] = (
+                TdfSchedule.query(db)
+                .to_dict(lambda x: x.schedule_id, lambda x: x)
+            )
+
             self.event_story_data: Dict[int, EventStoryDatum] = (
                 EventStoryDatum.query(db)
                 .to_dict(lambda x: x.story_group_id, lambda x: x)
@@ -562,6 +567,16 @@ class database():
             self.daily_mission_data: Dict[int, DailyMissionDatum] = (
                 DailyMissionDatum.query(db)
                 .to_dict(lambda x: x.daily_mission_id, lambda x: x)
+            )
+
+            self.stationary_mission_data: Dict[int, StationaryMissionDatum] = (
+                StationaryMissionDatum.query(db)
+                .to_dict(lambda x: x.stationary_mission_id, lambda x: x)
+            )
+
+            self.emblem_mission_data: Dict[int, EmblemMissionDatum] = (
+                EmblemMissionDatum.query(db)
+                .to_dict(lambda x: x.mission_id, lambda x: x)
             )
 
             self.memory_to_unit: Dict[int, int] = (
@@ -896,6 +911,12 @@ class database():
     def is_daily_mission(self, mission_id: int) -> bool:
         return mission_id in self.daily_mission_data
 
+    def is_stationary_mission(self, mission_id: int) -> bool:
+        return mission_id in self.stationary_mission_data
+
+    def is_emblem_mission(self, mission_id: int) -> bool:
+        return mission_id in self.emblem_mission_data
+
     def is_ex_equip(self, item: ItemType) -> bool:
         return item[0] == eInventoryType.ExtraEquip
 
@@ -1138,15 +1159,12 @@ class database():
         return schedule[0]
 
     def parse_time(self, time: str) -> datetime.datetime:
-        for timeformat in ['%Y/%m/%d %H:%M:%S', '%Y/%m/%d %H:%M', '%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%dT%H:%M:%SZ']:
+        for timeformat in ['%Y/%m/%d %H:%M:%S', '%Y/%m/%d %H:%M', '%Y/%m/%d', '%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%dT%H:%M:%SZ', '%Y%m%d%H%M%S']:
             try:
                 return datetime.datetime.strptime(time, timeformat)
             except:
                 pass
         raise ValueError(f"无法解析时间：{time}")
-
-    def parse_time_safe(self, time: str) -> datetime.datetime:
-        return datetime.datetime.strptime(time, '%Y%m%d%H%M%S')
 
     def format_time(self, time: datetime.datetime) -> str:
         return time.strftime("%Y/%m/%d %H:%M:%S")

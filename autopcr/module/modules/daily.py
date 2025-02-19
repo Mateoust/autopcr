@@ -93,35 +93,30 @@ class chara_fortune(Module):
         res = await client.draw_chara_fortune()
         self._log(f"赛马第{client.data.cf.rank}名，获得了宝石x{res.reward_list[0].received}")
 
+class mission_receive(Module):
+    async def do_task(self, client: pcrclient):
+        missions = await client.mission_index()
+        for type_id, condifion in zip([1, 2, 4], [db.is_daily_mission, db.is_stationary_mission, db.is_emblem_mission]): # 我也不知道为什么是1 2 4
+            if any(1 for mission in missions.missions if condifion(mission.mission_id) and mission.mission_status == eMissionStatusType.EnableReceive):
+                resp = await client.mission_receive(type_id)
+                reward = await client.serialize_reward_summary(resp.rewards)
+                self._log("领取了任务奖励，获得了:\n" + reward)
+        if not self.log:
+            raise SkipError("没有可领取的任务奖励")
+
 @description('开始时领取任务奖励')
-@name("领取每日任务奖励1")
+@name("领取任务奖励1")
 @default(True)
 @tag_stamina_get
-class mission_receive_first(Module):
-    async def do_task(self, client: pcrclient):
-        resp = await client.mission_index()
-        for mission in resp.missions:
-            if db.is_daily_mission(mission.mission_id) and mission.mission_status == eMissionStatusType.EnableReceive:
-                resp = await client.mission_receive()
-                reward = await client.serlize_reward(resp.rewards)
-                self._log("领取了任务奖励，获得了:\n" + reward)
-                return
-        raise SkipError("没有可领取的任务奖励")
+class mission_receive_first(mission_receive):
+    pass
 
 @description('结束时领取任务奖励')
-@name("领取每日任务奖励2")
+@name("领取任务奖励2")
 @default(True)
 @tag_stamina_get
-class mission_receive_last(Module):
-    async def do_task(self, client: pcrclient):
-        resp = await client.mission_index()
-        for mission in resp.missions:
-            if db.is_daily_mission(mission.mission_id) and mission.mission_status == eMissionStatusType.EnableReceive:
-                resp = await client.mission_receive()
-                reward = await client.serlize_reward(resp.rewards)
-                self._log("领取了任务奖励，获得了:\n" + reward)
-                return
-        raise SkipError("没有可领取的任务奖励")
+class mission_receive_last(mission_receive):
+    pass
 
 @description('')
 @name("领取女神祭任务")
@@ -136,7 +131,7 @@ class seasonpass_accept(Module):
             resp = await client.season_ticket_new_index(seasonpass_id)
             if any(mission.mission_status == eMissionStatusType.EnableReceive for mission in resp.missions):
                 resp = await client.season_ticket_new_accept(seasonpass_id, 0)
-                reward = await client.serlize_reward(resp.rewards)
+                reward = await client.serialize_reward_summary(resp.rewards)
                 self._log(f"领取了女神祭任务，获得了{reward}")
                 self._log(f"当前女神祭等级：{resp.seasonpass_level}")
             else:
@@ -203,7 +198,7 @@ class seasonpass_reward(Module):
                                            2)
                         
             if rewards:
-                reward = await client.serlize_reward(rewards)
+                reward = await client.serialize_reward_summary(rewards)
                 self._log(f"领取了女神祭奖励，获得了:\n{reward}")
             else:
                 raise SkipError("没有可领取的女神祭奖励")
@@ -240,7 +235,7 @@ class present_receive(Module):
 
         if not received:
             raise SkipError(f"不存在未领取{'的非体力的' if is_exclude_stamina == True else '的'}礼物")
-        msg = await client.serlize_reward(result)
+        msg = await client.serialize_reward_summary(result)
         self._log(op + msg)
 
 
