@@ -13,6 +13,7 @@ from queue import SimpleQueue
 from .constdata import extra_drops
 from ..core.apiclient import apiclient
 from typing import TypeVar, Generic
+from ..util.pcr_data import CHARA_NICKNAME
 
 T = TypeVar("T")
 
@@ -848,6 +849,14 @@ class database():
             )
 
     @lazy_property
+    def emblem_data(self) -> Dict[int, EmblemDatum]:
+        with self.dbmgr.session() as db:
+            return (
+                EmblemDatum.query(db)
+                .to_dict(lambda x: x.emblem_id, lambda x: x)
+            )
+
+    @lazy_property
     def emblem_mission_data(self) -> Dict[int, EmblemMissionDatum]:
         with self.dbmgr.session() as db:
             return (
@@ -1101,6 +1110,14 @@ class database():
             )
 
     @lazy_property
+    def wts_story_data(self) -> Dict[int, WtsStoryDatum]:
+        with self.dbmgr.session() as db:
+            return (
+                WtsStoryDatum.query(db)
+                .to_dict(lambda x: x.sub_story_id, lambda x: x)
+            )
+
+    @lazy_property
     def bmy_story_data(self) -> Dict[int, BmyStoryDatum]:
         with self.dbmgr.session() as db:
             return (
@@ -1260,6 +1277,15 @@ class database():
             )
 
     @lazy_property
+    def travel_top_event_drama(self) -> Dict[int, List[TravelTopEventDrama]]:
+        with self.dbmgr.session() as db:
+            return (
+                TravelTopEventDrama.query(db)
+                .group_by(lambda x: x.drama_id)
+                .to_dict(lambda x: x.key, lambda x: x.to_list())
+            )
+
+    @lazy_property
     def travel_quest_data(self) -> Dict[int, TravelQuestDatum]:
         with self.dbmgr.session() as db:
             return (
@@ -1342,6 +1368,8 @@ class database():
 
     def get_unit_name(self, unit_id: int) -> str:
         try:
+            if unit_id // 100 in CHARA_NICKNAME:
+                return CHARA_NICKNAME[unit_id // 100]
             return self.inventory_name[(eInventoryType.Unit, unit_id)]
         except:
             return f"未知角色({unit_id})"
@@ -1514,6 +1542,10 @@ class database():
                 .where(lambda x: now >= self.parse_time(x.start_time) and now <= self.parse_time(x.end_time)) \
                 .to_list()
 
+    def get_active_hatsune_id(self) -> List[int]:
+        active_hatsune = self.get_active_hatsune()
+        return [event.event_id for event in active_hatsune]
+
     def get_active_hatsune_name(self) -> List[str]:
         active_hatsune = self.get_active_hatsune()
         return [f"{event.event_id}:{db.event_name[event.event_id]}" for event in active_hatsune]
@@ -1570,12 +1602,14 @@ class database():
         tomorrow = now + datetime.timedelta(days = 1)
         half_day = datetime.timedelta(hours = 7)
         n3 = (flow(self.campaign_schedule.values())
-                .where(lambda x: self.is_normal_quest_campaign(x.id) and x.value >= 6000 and self.is_level_effective_scope_in_campaign(level, x.id)) # TODO change 3000 when stop speed up
+                # .where(lambda x: self.is_normal_quest_campaign(x.id) and x.value >= 6000 and self.is_level_effective_scope_in_campaign(level, x.id)) # TODO change 3000 when stop speed up
+                .where(lambda x: self.is_normal_quest_campaign(x.id) and x.value >= 3000 and self.is_level_effective_scope_in_campaign(level, x.id))
                 .select(lambda x: (db.parse_time(x.start_time), db.parse_time(x.end_time)))
                 .to_list()
               )
         h3 = (flow(self.campaign_schedule.values())
-                .where(lambda x: self.is_hard_quest_campaign(x.id) and x.value >= 6000) # TODO change 3000 when stop speed up
+                # .where(lambda x: self.is_hard_quest_campaign(x.id) and x.value >= 6000) # TODO change 3000 when stop speed up
+                .where(lambda x: self.is_hard_quest_campaign(x.id) and x.value >= 3000)
                 .select(lambda x: (db.parse_time(x.start_time), db.parse_time(x.end_time)))
                 .to_list()
              )
@@ -1979,8 +2013,11 @@ class database():
             int(max(0, power - quest.need_power) * coeff)
         )
 
-    def unlock_unit_condition_candidate(self):
+    def unlock_unit_condition_candidate(self) -> List[int]:
         return self.unlock_unit_condition
+
+    def limit_unit_condition_candidate(self) -> List[int]:
+        return [x for x in self.unlock_unit_condition if self.unit_data[x].is_limited]
 
     def free_gacha_ids_candidate(self):
         free_gacha_campaigns = flow(self.campaign_free_gacha.values()) \

@@ -122,7 +122,8 @@ class datamgr(BaseModel, Component[apiclient]):
         if not times:
             return 0
         times = max(times)
-        return int(times) // 2 # TODO delete // 2 when stop speed up
+        return int(times)
+        # return int(times) // 2 # TODO delete // 2 when stop speed up
 
     def get_heart_piece_campaign_times(self) -> int:
         return self.get_campaign_times(db.is_heart_piece_campaign) // 1000
@@ -416,7 +417,7 @@ class datamgr(BaseModel, Component[apiclient]):
                 self.unit_love_data[unit_id].chara_id = unit_id
                 self.unit_love_data[unit_id].chara_love = 0
                 self.unit_love_data[unit_id].love_level = 0
-        elif item.type == eInventoryType.ExtraEquip:
+        elif item.type == eInventoryType.ExtraEquip and item.ex_equip:
             self.ex_equips[item.ex_equip.serial_id] = item.ex_equip
         else:
             self.inventory[token] = item.stock

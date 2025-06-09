@@ -23,6 +23,11 @@ class ModuleList:
     name: str = ""
     key: str = ""
     modules: List[Any] = field(default_factory=list)
+    hidden_in_batch: bool = False
+    hidden_in_clan: bool = False
+    hidden: bool = False
+    visible_in_clan: bool = False
+    visible_in_batch: bool = False
 
 cron_modules = ModuleList(
     '定时',
@@ -34,7 +39,9 @@ cron_modules = ModuleList(
         cron4,
         cron5,
         cron6,
-    ]
+    ],
+    hidden_in_batch=True,
+    hidden_in_clan=True,
 )
 
 daily_modules = ModuleList(
@@ -86,8 +93,6 @@ daily_modules = ModuleList(
         hatsune_gacha_exchange,
         hatsune_mission_accept2,
 
-        jjc_daily,
-        pjjc_daily,
         unit_equip_enhance_up,
         unit_skill_level_up,
 
@@ -127,7 +132,18 @@ planning_modules = ModuleList(
         get_need_memory,
         get_need_pure_memory,
         get_need_xinsui,
-    ]
+    ],
+    hidden_in_batch=True,
+)
+
+table_modules = ModuleList(
+    '表格',
+    'table',
+    [
+        get_need_pure_memory_box,
+    ],
+    hidden=True,
+    visible_in_batch=True,
 )
 
 
@@ -135,7 +151,10 @@ unit_modules = ModuleList(
     '角色',
     'unit',
     [
+        search_unit,
+        master_shop,
         missing_unit,
+        refresh_box,
         unit_promote,
         unit_memory_buy,
         unit_set_unique_equip_growth,
@@ -149,7 +168,10 @@ clan_modules = ModuleList(
         unit_promote_batch,
         unit_memory_buy_batch,
         set_my_party,
-    ]
+        get_box_table,
+    ],
+    hidden=True,
+    visible_in_clan=True,
 )
 
 danger_modules = ModuleList(
@@ -157,7 +179,9 @@ danger_modules = ModuleList(
     'danger',
     [
         gacha_start,
-    ]
+        gacha_exchange_chara,
+    ],
+    hidden_in_clan=True,
 )
 
 tool_modules = ModuleList(
@@ -166,19 +190,12 @@ tool_modules = ModuleList(
     [
         # cook_pudding,
         half_schedule,
-        search_box,
-        refresh_box,
         ex_equip_info,
+        missing_emblem,
         travel_team_view,
         get_clan_support_unit,
         clear_my_party,
         remove_cb_support,
         redeem_unit_swap,
-        jjc_back,
-        pjjc_back,
-        jjc_info,
-        pjjc_info,
-        pjjc_def_shuffle_team,
-        pjjc_atk_shuffle_team,
     ]
 )
