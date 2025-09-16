@@ -50,6 +50,15 @@ class pcrclient(apiclient):
         await self.session.clear_session()
         self.need_refresh = False
 
+    async def clan_battle_top(self):
+        if not self.data.clan:
+            raise AbortError("未加入公会")
+        req = ClanBattleTopRequest()
+        req.clan_id = self.data.clan
+        req.is_first = 1
+        req.current_clan_battle_coin = self.data.get_shop_gold(eSystemId.CLAN_BATTLE_SHOP)
+        return await self.request(req)
+
     async def emblem_top(self):
         req = EmblemTopRequest()
         return await self.request(req)
@@ -64,6 +73,39 @@ class pcrclient(apiclient):
         req.position = position
         req.action = action
         req.unit_id = unit_id
+        return await self.request(req)
+
+    async def unit_equip_ex(self, ex_equip_change_unit_list: List[ExtraEquipChangeUnit]):
+        req = UnitEquipExRequest()
+        req.ex_equip_change_unit_list = ex_equip_change_unit_list
+        return await self.request(req)
+
+    async def equipment_rankup_ex(self, serial_id: int, unit_id: int, frame: int, slot: int, before_rank: int, after_rank: int, consume_gold: int, from_view: int, item_list: List[InventoryInfoPost], consume_ex_serial_id_list: List[int]):
+        req = EquipmentRankupExRequest()
+        req.serial_id = serial_id
+        req.unit_id = unit_id
+        req.frame = frame
+        req.slot = slot
+        req.before_rank = before_rank
+        req.after_rank = after_rank
+        req.consume_gold = consume_gold
+        req.from_view = from_view
+        req.item_list = item_list
+        req.consume_ex_serial_id_list = consume_ex_serial_id_list
+        return await self.request(req)
+
+    async def equipment_enhance_ex(self, unit_id: int, serial_id: int, frame: int, slot: int, before_enhancement_pt: int, after_enhancement_pt: int, consume_gold: int, from_view: int, item_list: List[InventoryInfoPost], consume_ex_serial_id_list: List[int]):
+        req = EquipmentEnhanceExRequest()
+        req.unit_id = unit_id
+        req.serial_id = serial_id
+        req.frame = frame
+        req.slot = slot
+        req.before_enhancement_pt = before_enhancement_pt
+        req.after_enhancement_pt = after_enhancement_pt
+        req.consume_gold = consume_gold
+        req.from_view = from_view
+        req.item_list = item_list
+        req.consume_ex_serial_id_list = consume_ex_serial_id_list
         return await self.request(req)
 
     async def caravan_top(self):
@@ -344,6 +386,22 @@ class pcrclient(apiclient):
             ) for equips in equip_recipe_list]
         return await self.request(req)
 
+    async def unit_multi_evolution(
+        self,
+        unit_id: int,
+        current_rarity: int,
+        after_rarity: int,
+        current_gold_num: int,
+        current_memory_piece_num: int,
+    ):
+        req = UnitMultiEvolutionRequest()
+        req.unit_id = unit_id
+        req.current_rarity = current_rarity
+        req.after_rarity = after_rarity
+        req.current_gold_num = current_gold_num
+        req.current_memory_piece_num = current_memory_piece_num
+        return await self.request(req)
+
     async def unit_free_promotion(self, unit_id: int, target_promotion_level: int):
         req = UnitFreePromotionRequest()
         req.unit_id = unit_id
@@ -369,6 +427,13 @@ class pcrclient(apiclient):
         req.unit_id = unit_id
         req.item_list = [ItemInfo(item_id=item[1], item_num=count, current_num=self.data.get_inventory(item)) for item, count in item.items()]
         return await self.request(req)
+    
+    async def unit_exceed_level_limit(self, unit_id: int, exceed_stage: int, cost_item_list: List[InventoryInfoPost]):
+        req = UnitExceedLevelLimitRequest()
+        req.unit_id = unit_id
+        req.exceed_stage = exceed_stage
+        req.cost_item_list = cost_item_list
+        return await self.request(req)
 
     async def equipment_enhance(self, unit_id: int, equip_slot_num: int, current_enhancement_pt: int, items: typing.Counter[ItemType]):
         req = EquipEnhanceRequest()
@@ -376,6 +441,19 @@ class pcrclient(apiclient):
         req.equip_slot_num = equip_slot_num
         req.current_enhancement_pt = current_enhancement_pt
         req.item_list = [InventoryInfoPost(id=item[1], type=eInventoryType.Item, count=count) for item, count in items.items()]
+        return await self.request(req)
+
+    async def multi_enhance_unique_2(self, unit_id: int, current_enhance_level: int, after_enhance_level: int, consume_item: typing.Counter[ItemType]):
+        req = UniqueEquip2MultiEnhanceRequest()
+        req.unit_id = unit_id
+        req.current_enhance_level = current_enhance_level
+        req.after_enhance_level = after_enhance_level
+        req.consume_item_list = [EnhanceRecipe(
+                id=item[1], 
+                type=item[0],
+                count=count,
+                current_count=self.data.get_inventory(item)
+            ) for item, count in consume_item.items()]
         return await self.request(req)
 
     async def unique_equip_free_enhance(self, unit_id: int, equip_slot_num: int, current_enhancement_pt: int, after_enhancement_pt: int):
@@ -533,15 +611,16 @@ class pcrclient(apiclient):
         if self.data.get_mana() >= mana:
             return True
         elif self.data.get_mana(include_bank = True) >= mana:
-            await self.draw_from_bank(self.data.user_gold_bank_info.bank_gold, mana - self.data.get_mana())
+            to_get = min(self.data.settings.limit.limit_gold, mana) - self.data.get_mana()
+            await self.draw_from_bank(self.data.user_gold_bank_info.bank_gold, to_get)
             return True
         else:
             return False
 
-    async def exec_gacha_aware(self, target_gacha: GachaParameter, gacha_times: int, draw_type: eGachaDrawType, current_cost_num: int, campaign_id: int, auto_select_pickup: bool = True) -> GachaReward:
+    async def exec_gacha_aware(self, target_gacha: GachaParameter, gacha_times: int, draw_type: eGachaDrawType, current_cost_num: int, campaign_id: int, auto_select_pickup: bool = True, pickup_min_first: bool = False) -> GachaReward:
 
-        if draw_type == eGachaDrawType.Payment and current_cost_num < 1500:
-            raise AbortError(f"宝石{current_cost_num}不足1500")
+        if draw_type == eGachaDrawType.Payment and current_cost_num < 150 * gacha_times:
+            raise AbortError(f"宝石{current_cost_num}不足{150 * gacha_times}")
 
         if draw_type == eGachaDrawType.Ticket and current_cost_num < 1:
             raise AbortError(f"单抽券{current_cost_num}不足")
@@ -563,8 +642,9 @@ class pcrclient(apiclient):
             if target_gacha.select_pickup_slot_num == len(target_gacha.priority_list) and all(db.gacha_pickup[pickup_id][u].reward_id not in self.data.unit for u in target_gacha.priority_list):
                 pass
             elif auto_select_pickup or target_gacha.select_pickup_slot_num > len(target_gacha.priority_list):
+                sign = -1 if pickup_min_first else 1
                 pickup_units = [u for u in db.gacha_pickup[pickup_id].values()]
-                pickup_units.sort(key = lambda x: (x.reward_id not in self.data.unit, -x.reward_id), reverse = True)
+                pickup_units.sort(key = lambda x: (x.reward_id not in self.data.unit, x.reward_id * sign), reverse = True)
                 pickup_units = pickup_units[:target_gacha.select_pickup_slot_num]
                 pickup_units = [u.priority for u in pickup_units]
                 if set(pickup_units) != set(target_gacha.priority_list):
@@ -576,7 +656,7 @@ class pcrclient(apiclient):
             raise AbortError(f"已达到天井{self.data.gacha_point[target_gacha.exchange_id].current_point}pt，请上号兑换角色") 
 
         if draw_type == eGachaDrawType.Payment: # 怎么回传没有宝石数
-            tot = 1500
+            tot = 150 * gacha_times
             mine = min(tot, self.data.jewel.free_jewel)
 
             tot -= mine
@@ -633,6 +713,16 @@ class pcrclient(apiclient):
     async def read_story(self, story_id: int):
         await self.story_check(story_id)
         return await self.story_view(story_id)
+
+    async def read_ais_story(self, sub_story_id: int):
+        req = SubStoryAisReadStoryRequest()
+        req.sub_story_id = sub_story_id
+        await self.request(req)
+
+    async def read_nyd_story(self, sub_story_id: int):
+        req = SubStoryNydReadStoryRequest()
+        req.sub_story_id = sub_story_id
+        await self.request(req)
 
     async def read_xac_story(self, sub_story_id: int):
         req = SubStoryXacReadStoryRequest()
@@ -1118,7 +1208,12 @@ class pcrclient(apiclient):
                     summary[name(reward)] += reward.count
                     break
             else:
-                rewards[item] += reward.count
+                if reward.count is not None:
+                    rewards[item] += reward.count
+                elif reward.received is not None:
+                    rewards[item] += reward.received
+                else:
+                    pass
         result = []
         for key, value in sorted(summary.items(), key = lambda x: x[1], reverse = True):
             result.append(f"{key}x{value}")

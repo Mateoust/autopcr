@@ -246,11 +246,12 @@ class missing_unit(Module):
                 self._log(f"==常驻角色==" )
                 self._log('\n'.join(db.get_unit_name(id) for id in resident_unit))
 
-@description('警告！真抽！\n抽到出指NEW出保底角色，或达天井停下来，如果已有保底角色，就不会NEW！意味着就是一井！\n智能pickup指当前pickup角色为已拥有角色时会自动切换成未拥有的角色。\n附奖池自动选择缺口最多的碎片，pickup池未选满角色自动选择未拥有角色，有多个则按角色编号大到小选取\n先免费十连->限定十连券->钻石')
+@description('警告！真抽！\n抽到出指NEW出保底角色，或达天井停下来，如果已有保底角色，就不会NEW！意味着就是一井！\n智能pickup指当前pickup角色为已拥有角色时会自动切换成未拥有的角色。\n附奖池自动选择缺口最多的碎片，pickup池未选满角色自动选择未拥有角色，有多个则按角色编号大到小或小到大选取\n先免费十连->限定十连券->钻石')
 @name('抽卡')
-@booltype("single_ticket", "用单抽券", False)
+@singlechoice("gacha_method", "抽取方式", '十连', ['十连', '单抽', '单抽券'])
 @singlechoice("pool_id", "池子", "", db.get_cur_gacha)
-@booltype('gacha_start_auto_select_pickup', "智能pickup", True)
+@booltype('gacha_start_auto_select_pickup_min_first', "PickUp编号小优先", False)
+@booltype('gacha_start_auto_select_pickup', "智能PickUp", True)
 @booltype("cc_until_get", "抽到出", False)
 @default(True)
 class gacha_start(Module):
@@ -262,7 +263,8 @@ class gacha_start(Module):
         if ':' not in self.get_config('pool_id'):
             raise ValueError("配置格式不正确")
         gacha_id = int(self.get_config('pool_id').split(':')[0])
-        single_ticket = self.get_config('single_ticket')
+        gacha_method = self.get_config('gacha_method')
+        pickup_min_first = self.get_config('gacha_start_auto_select_pickup_min_first')
         real_exchange_id = 0
         if gacha_id == 120001:
             if not client.data.return_fes_info_list or all(item.end_time <= client.time for item in client.data.return_fes_info_list):
@@ -287,26 +289,36 @@ class gacha_start(Module):
         gacha_start_auto_select_pickup: bool = self.get_config('gacha_start_auto_select_pickup')
         try:
             while True:
-                if single_ticket:
-                    reward += await client.exec_gacha_aware(target_gacha, 1, eGachaDrawType.Ticket, client.data.get_inventory(db.gacha_single_ticket), 0)
-                else:
+                if gacha_method == '单抽券':
+                    reward += await client.exec_gacha_aware(target_gacha, 1, eGachaDrawType.Ticket, client.data.get_inventory(db.gacha_single_ticket), 0, gacha_start_auto_select_pickup, pickup_min_first)
+                elif gacha_method == '单抽':
+                    reward += await client.exec_gacha_aware(target_gacha, 1, eGachaDrawType.Payment, client.data.jewel.free_jewel + client.data.jewel.jewel, 0, gacha_start_auto_select_pickup, pickup_min_first)
+                elif gacha_method == '十连':
                     if isinstance(resp, GachaIndexResponse) and resp.campaign_info and resp.campaign_info.fg10_exec_cnt and target_gacha.id in db.campaign_free_gacha_data[resp.campaign_info.campaign_id]:
-                        reward += await client.exec_gacha_aware(target_gacha, 10, eGachaDrawType.Campaign10Shot, cnt, resp.campaign_info.campaign_id, gacha_start_auto_select_pickup)
+                        reward += await client.exec_gacha_aware(target_gacha, 10, eGachaDrawType.Campaign10Shot, cnt, resp.campaign_info.campaign_id, gacha_start_auto_select_pickup, pickup_min_first)
                         resp.campaign_info.campaign_id -= 1
                     elif any(client.data.get_inventory(temp_ticket) > 0 for temp_ticket in temp_tickets):
                         # find first ticket
                         ticket = next((temp_ticket for temp_ticket in temp_tickets if client.data.get_inventory(temp_ticket)))
                         num = client.data.get_inventory(ticket)
-                        reward += await client.exec_gacha_aware(target_gacha, 10, eGachaDrawType.Temp_Ticket_10, num, 0, gacha_start_auto_select_pickup)
+                        reward += await client.exec_gacha_aware(target_gacha, 10, eGachaDrawType.Temp_Ticket_10, num, 0, gacha_start_auto_select_pickup, pickup_min_first)
+                    elif any(client.data.get_inventory(gacha_ten_ticket) > 0 for gacha_ten_ticket in db.gacha_ten_tickets):
+                        ticket = next((gacha_ten_ticket for gacha_ten_ticket in db.gacha_ten_tickets if client.data.get_inventory(gacha_ten_ticket)))
+                        num = client.data.get_inventory(ticket)
+                        reward += await client.exec_gacha_aware(target_gacha, 10, eGachaDrawType.Ticket, num, 0, gacha_start_auto_select_pickup, pickup_min_first) # real ticket ?
                     else:
-                        reward += await client.exec_gacha_aware(target_gacha, 10, eGachaDrawType.Payment, client.data.jewel.free_jewel + client.data.jewel.jewel, 0, gacha_start_auto_select_pickup)
+                        reward += await client.exec_gacha_aware(target_gacha, 10, eGachaDrawType.Payment, client.data.jewel.free_jewel + client.data.jewel.jewel, 0, gacha_start_auto_select_pickup, pickup_min_first)
+                else:
+                    raise ValueError("未知的抽卡方式")
+
                 cnt += 1
                 if not always or self.can_stop(reward.new_unit, db.gacha_exchange_chara[target_gacha.exchange_id if not real_exchange_id else real_exchange_id]):
                     break
+
         except:
             raise 
         finally:
-            self._log(f"抽取了{cnt}次{'十连' if not single_ticket else '单抽'}")
+            self._log(f"抽取了{cnt}次{gacha_method}")
             self._log(await client.serlize_gacha_reward(reward, target_gacha.id))
             point = client.data.gacha_point[target_gacha.exchange_id].current_point if target_gacha.exchange_id in client.data.gacha_point else 0
             self._log(f"当前pt为{point}")
@@ -447,7 +459,7 @@ class get_need_pure_memory_box(Module):
         data = {}
         for unit in unique_equip_2_pure_memory_id:
             kana = db.unit_data[unit].kana
-            target[kana] += 150
+            target[kana] += 150 if unit not in client.data.unit or len(client.data.unit[unit].unique_equip_slot) < 2 or not client.data.unit[unit].unique_equip_slot[1].is_slot else 150 - client.data.unit[unit].unique_equip_slot[1].enhancement_pt
             own = -sum(pure_gap[db.unit_to_pure_memory[unit]] if unit in db.unit_to_pure_memory else 0 for unit in db.unit_kana_ids[kana])
             need_list.append((unit, target[kana] - own))
             unit_name = db.get_unit_name(unit)
@@ -556,7 +568,7 @@ class clear_my_party(Module):
 
 
 
-@description('从指定面板的指定队开始设置。6行重复，标题+5行角色ID	角色名字	角色等级	角色星级')
+@description('从指定面板的指定队开始设置，并调整星级。若干行重复，标题+若干行角色ID	角色名字	角色等级	角色星级\n忽略角色名字和角色等级')
 @texttype("set_my_party_text", "队伍阵容", "")
 @inttype("party_start_num", "初始队伍", 1, [i for i in range(1, 11)])
 @inttype("tab_start_num", "初始面板", 1, [i for i in range(1, 7)])
@@ -565,19 +577,29 @@ class set_my_party(Module):
     async def do_task(self, client: pcrclient):
         set_my_party_text: str = self.get_config('set_my_party_text')
         tab_number: int = self.get_config('tab_start_num')
-        party_number: int = self.get_config('party_start_num') - 1
+        party_number: int = self.get_config('party_start_num')
         party = set_my_party_text.splitlines()
-        for i in range(0, len(party), 6):
+        title_id = [i for i, text in enumerate(party) if len(text.strip().split()) == 1]
+        title_id.append(len(party))
+        for i in range(len(title_id) - 1):
 
-            party_number += 1
-            if party_number == 11:
-                tab_number += 1
-                party_number = 1
-                if tab_number >= 6:
-                    raise AbortError("队伍数量超过上限")
+            if tab_number >= 6:
+                raise AbortError("队伍数量超过上限")
 
-            title = party[i].strip() + "记得借人"
-            unit_list = [u.split('\t') for u in party[i + 1 : i + 1 + 5]]
+            st = title_id[i]
+            ed = title_id[i + 1]
+
+            title = party[st].strip()
+            unit_list = [u.split() for u in party[st + 1 : ed]]
+            if len(unit_list) > 5:
+                self._warn(f"{title}角色数超过5个，忽略该队伍")
+                continue
+            if len(unit_list) < 1:
+                self._warn(f"{title}角色数小于1个，忽略该队伍")
+                continue
+            if len(set(u[0] for u in unit_list)) != len(unit_list):
+                self._warn(f"{title}角色重复，忽略该队伍")
+                continue
 
             own_unit = [u for u in unit_list if int(u[0]) in client.data.unit]
             not_own_unit = [u for u in unit_list if int(u[0]) not in client.data.unit]
@@ -607,4 +629,9 @@ class set_my_party(Module):
             else:
                 await client.set_my_party(tab_number, party_number, 4, title, unit_list, change_rarity_list)
                 self._log(f"设置了{title}")
+
+            party_number += 1
+            if party_number == 11:
+                tab_number += 1
+                party_number = 1
 
