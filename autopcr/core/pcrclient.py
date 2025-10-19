@@ -141,6 +141,15 @@ class pcrclient(apiclient):
         req.roll_num = roll_num
         return await self.request(req)
 
+    async def caravan_coin_shop_buy_bulk(self, season_id: int, shop_season_id: int, buy_item_dict: typing.Counter[int], current_currency_num: int):
+        req = CaravanCoinShopBuyBulkRequest()
+        req.season_id = season_id
+        req.shop_season_id = shop_season_id
+        req.buy_item_list = [BuyBulkBuyItemList(slot_id=slot_id, count=count) for slot_id, count in buy_item_dict.items()]
+        req.current_currency_num = current_currency_num
+        req.is_multi_slots = 0
+        return await self.request(req)
+
     async def caravan_coin_shop_buy(self, season_id: int, shop_season_id: int, slot_id_list: List[int], current_currency_num: int):
         req = CaravanCoinShopBuyRequest()
         req.season_id = season_id
@@ -617,7 +626,7 @@ class pcrclient(apiclient):
         else:
             return False
 
-    async def exec_gacha_aware(self, target_gacha: GachaParameter, gacha_times: int, draw_type: eGachaDrawType, current_cost_num: int, campaign_id: int, auto_select_pickup: bool = True, pickup_min_first: bool = False) -> GachaReward:
+    async def exec_gacha_aware(self, target_gacha: GachaParameter, gacha_times: int, draw_type: eGachaDrawType, current_cost_num: int, campaign_id: int, last_gacha_index_time: int, auto_select_pickup: bool = True, pickup_min_first: bool = False) -> GachaReward:
 
         if draw_type == eGachaDrawType.Payment and current_cost_num < 150 * gacha_times:
             raise AbortError(f"宝石{current_cost_num}不足{150 * gacha_times}")
@@ -669,13 +678,13 @@ class pcrclient(apiclient):
             ticket = next((eInventoryType.Item, temp_ticket) for temp_ticket in db.get_gacha_temp_ticket() if self.data.get_inventory((eInventoryType.Item, temp_ticket)))
             self.data.set_inventory(ticket, current_cost_num - 1)
 
-        resp = await self.exec_gacha(target_gacha.id, gacha_times, target_gacha.exchange_id, draw_type, current_cost_num, campaign_id)
+        resp = await self.exec_gacha(target_gacha.id, gacha_times, target_gacha.exchange_id, draw_type, current_cost_num, campaign_id, last_gacha_index_time)
 
         reward: GachaReward = GachaReward(resp)
 
         return reward
 
-    async def exec_gacha(self, gacha_id: int, gacha_times: int, exchange_id: int, draw_type: int, current_cost_num: int, campaign_id: int):
+    async def exec_gacha(self, gacha_id: int, gacha_times: int, exchange_id: int, draw_type: int, current_cost_num: int, campaign_id: int, last_gacha_index_time: int):
         req = GachaExecRequest()
         req.gacha_id = gacha_id
         req.gacha_times = gacha_times
@@ -683,6 +692,7 @@ class pcrclient(apiclient):
         req.draw_type = draw_type
         req.current_cost_num = current_cost_num
         req.campaign_id = campaign_id
+        req.last_gacha_index_time = last_gacha_index_time
         return await self.request(req)
 
     async def exec_hatsune_gacha(self, event_id: int, gacha_id: int, gacha_times: int, current_cost_num: int, loop_box_multi_gacha_flag: int):
@@ -714,40 +724,55 @@ class pcrclient(apiclient):
         await self.story_check(story_id)
         return await self.story_view(story_id)
 
+    async def draw_fpc_story(self, period: eFpcPeriod, fpc_operation_type: eFpcOperationType):
+        req = SubStoryFpcDrawStoryRequest()
+        req.period = period
+        req.fpc_operation_type = fpc_operation_type
+        return await self.request(req)
+
+    async def read_fpc_story(self, sub_story_id: int):
+        req = SubStoryFpcReadStoryRequest()
+        req.sub_story_id = sub_story_id
+        return await self.request(req)
+
     async def read_ais_story(self, sub_story_id: int):
         req = SubStoryAisReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
+
+    async def confirm_ais_story(self):
+        req = SubStoryAisConfirmRequest()
+        return await self.request(req)
 
     async def read_nyd_story(self, sub_story_id: int):
         req = SubStoryNydReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_xac_story(self, sub_story_id: int):
         req = SubStoryXacReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_asb_story(self, sub_story_id: int):
         req = SubStoryAsbReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_wtm_story(self, sub_story_id: int):
         req = SubStoryWtmReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_wts_story(self, sub_story_id: int):
         req = SubStoryWtsReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_bmy_story(self, sub_story_id: int):
         req = SubStoryBmyReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def put_mme_piece(self, sub_story_id: int):
         req = SubStoryMmePutPieceRequest()
@@ -762,66 +787,66 @@ class pcrclient(apiclient):
     async def read_xeh_story(self, sub_story_id: int):
         req = SubStoryXehReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_lsv_story(self, sub_story_id: int):
         req = SubStoryLsvReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_dsb_story(self, sub_story_id: int):
         req = SubStoryDsbReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_ysn_story(self, sub_story_id: int):
         req = SubStoryYsnReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_nop_story(self, sub_story_id: int):
         req = SubStoryNopReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_mhp_story(self, sub_story_id: int):
         req = SubStoryMhpReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_svd_story(self, sub_story_id: int):
         req = SubStorySvdReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_ssp_story(self, sub_story_id: int):
         req = SubStorySspReadSspStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_ske_story(self, sub_story_id: int):
         req = SubStorySkeReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_dvs_story(self, sub_story_id: int):
         req = SubStoryDvsReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_won_story(self, sub_story_id: int):
         req = SubStoryWonReadStoryRequest()
         req.sub_story_id_list = [sub_story_id]
-        await self.request(req)
+        return await self.request(req)
 
     async def confirm_ske_story(self):
         req = SubStorySkeConfirmRequest()
-        await self.request(req)
+        return await self.request(req)
 
     async def read_lto_story(self, sub_story_id: int):
         req = SubStoryLtoReadStoryRequest()
         req.sub_story_id = sub_story_id
-        await self.request(req)
+        return await self.request(req)
 
     async def read_hatsune_dear(self, event_id: int, story_id: int):
         req = HatsuneDearFinishRequest()
@@ -1042,7 +1067,8 @@ class pcrclient(apiclient):
         await self.request(req)
 
     async def get_clan_info(self):
-        if self.data.clan == 0: return None
+        if not self.data.clan:
+            raise AbortError("未加入公会")
         req = ClanInfoRequest()
         req.clan_id = self.data.clan
         req.get_user_equip = 0
@@ -1090,6 +1116,13 @@ class pcrclient(apiclient):
         req.current_ticket_num = self.data.get_inventory((eInventoryType.Item, 23001))
         req.quest_id = quest
         req.random_count = times
+        return await self.request(req)
+
+    async def talent_quest_skip(self, quest_id: int, use_ticket_num: int):
+        req = TalentQuestSkipRequest()
+        req.quest_id = quest_id
+        req.use_ticket_num = use_ticket_num
+        req.current_ticket_num = self.data.get_inventory((eInventoryType.Item, 23001))
         return await self.request(req)
 
     async def equip_get_request(self, message_id: int):
@@ -1307,7 +1340,13 @@ class pcrclient(apiclient):
         req.quest_id = quest
         req.current_currency_num = self.data.jewel.free_jewel + self.data.jewel.jewel
         return await self.request(req)
-    
+
+    async def talent_quest_recovery_challenge(self, talent_id: int):
+        req = TalentQuestRecoverChallengeRequest()
+        req.talent_id = talent_id
+        req.current_currency_num = self.data.jewel.free_jewel + self.data.jewel.jewel
+        return await self.request(req)
+
     async def present_index(self) -> PresentIndexResponse:
         req = PresentIndexRequest()
         req.time_filter = -1
@@ -1337,7 +1376,17 @@ class pcrclient(apiclient):
 
             if qinfo.clear_flag != 3:
                 raise AbortError(f"任务{name}未三星")
-
+        elif db.is_talent_quest(quest):
+            talent_id = db.get_talent_id_from_quest_id(quest)
+            max_quest_id = self.data.cleared_talent_quest_ids.get(talent_id, 0)
+            if max_quest_id < quest:
+                raise AbortError(f"任务{name}未通关或不存在")
+            qinfo = self.data.talent_quest_area_info.get(talent_id, TalentQuestAreaInfo(
+                talent_id = talent_id,
+                daily_bonus_use_count = 0,
+                daily_clear_count = 0,
+                daily_recovery_count = 0,
+            ))
         else:
             if not quest in self.data.quest_dict:
                 raise AbortError(f"任务{name}未通关或不存在")
@@ -1346,8 +1395,10 @@ class pcrclient(apiclient):
             if qinfo.clear_flg != 3: # 怎么会少一个a
                 raise AbortError(f"任务{name}未三星")
 
-
         info = db.quest_info[quest]
+        if db.is_talent_quest(quest): # fix
+            setattr(info, 'daily_limit', self.data.settings.talent_quest.daily_clear_limit_count)
+
         stamina_coefficient = self.data.get_quest_stamina_half_campaign_times(quest)
         if not stamina_coefficient: stamina_coefficient = 100
         result: List[InventoryInfo] = []
@@ -1363,6 +1414,8 @@ class pcrclient(apiclient):
             elif db.is_hatsune_quest(quest):
                 event = db.quest_to_event[quest].event_id
                 return await self.hatsune_quest_skip(event, quest, times)
+            elif db.is_talent_quest(quest):
+                return await self.talent_quest_skip(quest, times)
             else:
                 return await self.quest_skip(quest, times)
         if info.daily_limit:
@@ -1375,7 +1428,10 @@ class pcrclient(apiclient):
             remain = info.daily_limit * (qinfo.daily_recovery_count + 1) - qinfo.daily_clear_count
             while times > 0:
                 if remain == 0:
-                    await self.recover_challenge(quest)
+                    if db.is_talent_quest(quest):
+                        await self.talent_quest_recovery_challenge(db.get_talent_id_from_quest_id(quest))
+                    else:
+                        await self.recover_challenge(quest)
                     remain = info.daily_limit
                 t = min(times, remain)
                 resp = await skip(t)
