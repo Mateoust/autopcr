@@ -385,6 +385,8 @@ unique_equip_2_pure_memory_id = [
         113401, # 水星
         113601, # 水黑骑
         113901, # 鬼裁
+        113801, # 天姐
+        113701, # 天妹
 ]
 @conditional_execution1("very_hard_sweep_run_time", ["vh庆典"])
 @description('储备专二需求的150碎片，包括' + ','.join(db.get_unit_name(unit_id) for unit_id in unique_equip_2_pure_memory_id))
@@ -541,18 +543,13 @@ class last_normal_quest_sweep(DIY_sweep):
         quest: List[Tuple[int, int]] = [(id, last_sweep_quests_count) for id in last_sweep_quests]
         return quest
 
-@description('''
-每天扫荡！重置扫荡！
-'''.strip())
-@name("深域扫荡")
-@TalentConfig("talent_sweep_target_recovery_areas", "重置扫荡", [])
-@TalentConfig("talent_sweep_no_max_no_sweep", "非最高不扫荡", list(db.talents.keys()))
-@default(True)
-@tag_stamina_consume
-class talent_sweep(DIY_sweep):
+class TalentSweep(DIY_sweep):
+    def get_recovery_areas(self) -> List[int]: ...
+    def get_no_max_no_sweep_areas(self) -> List[int]: ...
+
     async def get_start_quest(self, client: pcrclient) -> List[Tuple[int, int]]:
-        recovery_areas: List[int] = self.get_config('talent_sweep_target_recovery_areas')
-        no_max_no_sweep: List[int] = self.get_config('talent_sweep_no_max_no_sweep')
+        recovery_areas: List[int] = self.get_recovery_areas()
+        no_max_no_sweep: List[int] = self.get_no_max_no_sweep_areas()
         daily_clear_limit_count = client.data.settings.talent_quest.daily_clear_limit_count
         ret = []
         for area_id in db.talent_quest_area_data:
@@ -570,3 +567,31 @@ class talent_sweep(DIY_sweep):
             recover = talent_id in recovery_areas
             ret.append((max_sweepable_quest, daily_clear_limit_count * (1 + recover * client.data.settings.talent_quest.recovery_max_count)))
         return ret
+
+@description('''
+每天扫荡！重置扫荡！
+'''.strip())
+@name("深域扫荡")
+@TalentConfig("talent_sweep_target_recovery_areas", "重置扫荡", [])
+@TalentConfig("talent_sweep_no_max_no_sweep", "非最高不扫荡", list(db.talents.keys()))
+@default(True)
+@tag_stamina_consume
+class talent_sweep(TalentSweep):
+    def get_recovery_areas(self) -> List[int]:
+        return self.get_config('talent_sweep_target_recovery_areas')
+    def get_no_max_no_sweep_areas(self) -> List[int]: 
+        return self.get_config('talent_sweep_no_max_no_sweep')
+
+@description('''
+领取邮件体力后再次扫荡！
+'''.strip())
+@name("深域扫荡2")
+@TalentConfig("talent_sweep2_target_recovery_areas", "重置扫荡", [])
+@TalentConfig("talent_sweep2_no_max_no_sweep", "非最高不扫荡", list(db.talents.keys()))
+@default(True)
+@tag_stamina_consume
+class talent_sweep2(TalentSweep):
+    def get_recovery_areas(self) -> List[int]:
+        return self.get_config('talent_sweep2_target_recovery_areas')
+    def get_no_max_no_sweep_areas(self) -> List[int]: 
+        return self.get_config('talent_sweep2_no_max_no_sweep')
