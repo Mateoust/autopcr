@@ -533,6 +533,7 @@ class LoadIndexResponse(responses.LoadIndexResponse):
         mgr.campaign_list = self.campaign_list
         mgr.dispatch_units = self.dispatch_units
         mgr.princess_knight_info = self.princess_knight_info
+        mgr.unit_role_list = self.unit_role_list
 
 @handles
 class HomeIndexResponse(responses.HomeIndexResponse):
@@ -889,6 +890,18 @@ class SeasonPassMissionAcceptResponse(responses.SeasonPassMissionAcceptResponse)
         if self.exchange_rewards:
             for reward in self.exchange_rewards:
                 mgr.update_inventory(reward)
+
+@handles
+class SubStoryRagReadStoryResponse(responses.SubStoryRagReadStoryResponse):
+    async def update(self, mgr: datamgr, request):
+        if self.reward_info:
+            for reward in self.reward_info:
+                mgr.update_inventory(reward)
+        if self.special_reward_list:
+            for reward in self.special_reward_list:
+                mgr.update_inventory(reward)
+        if self.user_jewel:
+            mgr.jewel = self.user_jewel
 
 @handles
 class SubStoryAbdReadStoryResponse(responses.SubStoryAbdReadStoryResponse):
